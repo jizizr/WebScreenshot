@@ -14,4 +14,5 @@ public class PostRequestModel
     public string cssSelector { get; set; } = null;
     public int jsExecutedForceWait { get; set; } = 0;
     public string jsStr { get; set; } = "";
+    public string markdown { get; set; } = "";
 }

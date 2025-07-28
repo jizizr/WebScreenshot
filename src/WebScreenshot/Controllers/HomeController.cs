@@ -8,6 +8,7 @@ using OpenQA.Selenium.Chrome;
 using Microsoft.Extensions.Caching.Memory;
 using WebScreenshot.Models;
 using OpenQA.Selenium.Support.UI;
+using Markdig;  // 添加 Markdig 命名空间
 
 namespace WebScreenshot.Controllers
 {
@@ -80,25 +81,62 @@ namespace WebScreenshot.Controllers
             Console.WriteLine("requestModel:");
             Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(requestModel));
 
-            var url = requestModel.url;
-            var jsurl = requestModel.jsurl;
-            var windowWidth = requestModel.windowWidth;
-            var windowHeight = requestModel.windowHeight;
-            var wait = requestModel.wait;
-            var forceWait = requestModel.forceWait;
-            var jsExecutedForceWait = requestModel.jsExecutedForceWait;
-            var mode = requestModel.mode;
-            var cssSelector = requestModel.cssSelector;
+            string url = requestModel.url;
+            string jsurl = requestModel.jsurl;
+            int windowWidth = requestModel.windowWidth;
+            int windowHeight = requestModel.windowHeight;
+            int wait = requestModel.wait;
+            int forceWait = requestModel.forceWait;
+            int jsExecutedForceWait = requestModel.jsExecutedForceWait;
+            string mode = requestModel.mode;
+            string cssSelector = requestModel.cssSelector;
+            string markdown = requestModel.markdown;
+            string jsStr = requestModel.jsStr; // 提前声明 jsStr 变量
+
+            // 如果传入了 markdown，则忽略其他参数并渲染 markdown
+            if (!string.IsNullOrEmpty(markdown))
+            {
+                // 将 markdown 转换为 HTML
+                string html = Markdig.Markdown.ToHtml(markdown);
+                string htmlContent = $@"<!DOCTYPE html>
+                    <html>
+                    <head>
+                        <meta charset='utf-8'>
+                        <title>Markdown Preview</title>
+                        <style>
+                            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                                    line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }}
+                        </style>
+                    </head>
+                    <body>
+                        {html}
+                    </body>
+                    </html>";
+                
+                // 创建 data URI 用于渲染
+                url = "data:text/html;charset=utf-8," + Uri.EscapeDataString(htmlContent);
+                
+                // 覆盖其他参数确保只渲染 markdown
+                jsurl = "";
+                jsStr = "";
+                mode = "screenshot";
+                forceWait = 0;
+                wait = 0;
+                jsExecutedForceWait = 0;
+            }
 
             #region 检查url
-            if (string.IsNullOrEmpty(url) || (!url.StartsWith("http://") && !url.StartsWith("https://")))
+            if (string.IsNullOrEmpty(url) ||
+                (!url.StartsWith("http://") &&
+                 !url.StartsWith("https://") &&
+                 !url.StartsWith("data:text/html")))
             {
                 return Content("非法 url");
             }
             #endregion
 
             #region 检查jsurl/jsStr
-            string jsStr = requestModel.jsStr;
+            // jsStr 已提前声明
             if (!string.IsNullOrEmpty(jsurl))
             {
                 if (!jsurl.StartsWith("http://") && !jsurl.StartsWith("https://"))
