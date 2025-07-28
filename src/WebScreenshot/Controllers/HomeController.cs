@@ -414,7 +414,7 @@ namespace WebScreenshot.Controllers
         [NonAction]
         private void FileCache(out byte[] cacheEntry, string url, string jsStr, string mode, string cssSelector)
         {
-            string key = Request.QueryString.Value ?? "";
+            string key = (Request.QueryString.Value ?? "") + (url ?? "");
 
             Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} FileCache: {key}");
 
@@ -462,7 +462,7 @@ namespace WebScreenshot.Controllers
         [NonAction]
         private void MemoryCache(out byte[] cacheEntry, string url, string jsStr, string mode, string cssSelector)
         {
-            string key = Request.QueryString.Value ?? "";
+            string key = (Request.QueryString.Value ?? "") + (url ?? "");
 
             Console.WriteLine($"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")} MemoryCache: {key}");
 
