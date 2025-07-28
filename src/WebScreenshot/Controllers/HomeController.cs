@@ -98,18 +98,34 @@ namespace WebScreenshot.Controllers
             {
                 // 将 markdown 转换为 HTML
                 string html = Markdig.Markdown.ToHtml(markdown);
+                // 使用 GitHub 风格的 CSS 库
                 string htmlContent = $@"<!DOCTYPE html>
                     <html>
                     <head>
                         <meta charset='utf-8'>
                         <title>Markdown Preview</title>
+                        <!-- 引入 GitHub Markdown CSS -->
+                        <link rel=""stylesheet"" href=""https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.8.1/github-markdown.min.css"">
                         <style>
-                            body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-                                    line-height: 1.6; padding: 20px; max-width: 800px; margin: 0 auto; }}
+                            .markdown-body {{
+                                box-sizing: border-box;
+                                min-width: 200px;
+                                max-width: 980px;
+                                margin: 0 auto;
+                                padding: 45px;
+                            }}
+                            
+                            @media (max-width: 767px) {{
+                                .markdown-body {{
+                                    padding: 15px;
+                                }}
+                            }}
                         </style>
                     </head>
                     <body>
-                        {html}
+                        <article class=""markdown-body"">
+                            {html}
+                        </article>
                     </body>
                     </html>";
                 
