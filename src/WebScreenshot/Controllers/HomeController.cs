@@ -30,7 +30,8 @@ namespace WebScreenshot.Controllers
         private int _wait;
         private int _forceWait;
         private int _jsExecutedForceWait;
-        #endregion 
+        #endregion
+
         #endregion
 
         #region Ctor
@@ -68,12 +69,58 @@ namespace WebScreenshot.Controllers
             {
                 _settingsModel.Debug = debug;
             }
+            string apiKey = Environment.GetEnvironmentVariable("WebScreenshot_ApiKey".ToUpper()) ?? "";
+            if (!string.IsNullOrEmpty(apiKey))
+            {
+                _settingsModel.ApiKey = apiKey;
+            }
             #endregion
 
         }
         #endregion
 
-        #region Actions
+        #region Add
+        /// <summary>
+        /// 新增：添加 POST /add 方法
+        /// </summary>
+        [HttpPost("/add")]
+        public IActionResult Add([FromBody] AddRequestModel requestModel)
+        {
+            if (requestModel == null)
+            {
+                return BadRequest();
+            }
+
+            // API密钥验证（仅在配置了ApiKey时启用）
+            if (!string.IsNullOrEmpty(_settingsModel.ApiKey))
+            {
+                var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+                if (authHeader == null || !authHeader.StartsWith("Bearer ") ||
+                    authHeader.Substring("Bearer ".Length) != _settingsModel.ApiKey)
+                {
+                    return Unauthorized();
+                }
+            }
+
+            string id = requestModel.Id;
+            if (string.IsNullOrEmpty(id))
+            {
+                id = Guid.NewGuid().ToString("N");
+            }
+
+            // 设置缓存选项：滑动过期5分钟，绝对过期30分钟
+            var cacheOptions = new MemoryCacheEntryOptions()
+                .SetSlidingExpiration(TimeSpan.FromMinutes(5))
+                .SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
+
+            // 存储请求体到缓存，使用Id作为键
+            _cache.Set($"{CacheKeys.AddRequest}_{id}", requestModel, cacheOptions);
+
+            return Ok(id);
+        }
+        #endregion
+
+        #region Post
         [Route("")]
         [HttpPost]
         public async Task<ActionResult> Post([FromBody] PostRequestModel requestModel)
@@ -128,10 +175,10 @@ namespace WebScreenshot.Controllers
                         </article>
                     </body>
                     </html>";
-                
+
                 // 创建 data URI 用于渲染
                 url = "data:text/html;charset=utf-8," + Uri.EscapeDataString(htmlContent);
-                
+
                 // 覆盖其他参数确保只渲染 markdown
                 jsurl = "";
                 jsStr = "";
@@ -263,7 +310,9 @@ namespace WebScreenshot.Controllers
                                 <pre>{exStr}</pre>
                               </div", "text/html", Encoding.UTF8);
         }
+        #endregion
 
+        #region Get
         /// <summary>
         /// 获取 Web 截图
         /// </summary>
@@ -285,8 +334,28 @@ namespace WebScreenshot.Controllers
             [FromQuery] int windowWidth = 0, [FromQuery] int windowHeight = 0,
             [FromQuery] int wait = 0, [FromQuery] int forceWait = 0,
             [FromQuery] string mode = "screenshot", [FromQuery] string cssSelector = null,
-            [FromQuery] int jsExecutedForceWait = 0)
+            [FromQuery] int jsExecutedForceWait = 0,
+            [FromQuery] string id = null)  // 新增id参数
         {
+            // 如果提供了id，尝试从缓存中获取请求体
+            if (!string.IsNullOrEmpty(id))
+            {
+                string cacheKey = $"{CacheKeys.AddRequest}_{id}";
+                if (_cache.TryGetValue(cacheKey, out AddRequestModel cacheModel))
+                {
+                    // 用缓存中的参数覆盖当前参数
+                    url = cacheModel.url ?? url;
+                    jsurl = cacheModel.jsurl ?? jsurl;
+                    windowWidth = cacheModel.windowWidth;
+                    windowHeight = cacheModel.windowHeight;
+                    wait = cacheModel.wait;
+                    forceWait = cacheModel.forceWait;
+                    mode = cacheModel.mode ?? mode;
+                    cssSelector = cacheModel.cssSelector ?? cssSelector;
+                    jsExecutedForceWait = cacheModel.jsExecutedForceWait;
+                }
+            }
+
             #region 检查url
             if (string.IsNullOrEmpty(url) || (!url.StartsWith("http://") && !url.StartsWith("https://")))
             {
@@ -408,7 +477,6 @@ namespace WebScreenshot.Controllers
         }
         #endregion
 
-        #region Helpers
 
         #region Cache
         [NonAction]
@@ -631,8 +699,6 @@ namespace WebScreenshot.Controllers
         }
         #endregion
 
-        #endregion
-
     }
 
     public static class CacheKeys
@@ -648,5 +714,6 @@ namespace WebScreenshot.Controllers
         public static string Ticks => $"{SignKey}_Ticks";
         public static string CancelMsg => $"{SignKey}_CancelMsg";
         public static string CancelTokenSource => $"{SignKey}_CancelTokenSource";
+        public static string AddRequest => $"{SignKey}_AddRequest"; // 新增缓存键
     }
 }

@@ -9,5 +9,7 @@
         public string CacheModel { get; set; }
 
         public bool Debug { get; set; } = false;
+
+        public string ApiKey { get; set; }
     }
 }
